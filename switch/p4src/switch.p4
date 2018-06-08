@@ -184,7 +184,7 @@ table prads_udp_asset {
 /* decide which port to forward the packets */
 
 action simple_forward(ifindex) {
-    modify_field(ingress_metadata.ifindex, ifindex);
+    modify_field(ingress_metadata.egress_ifindex, ifindex);
 }
 
 table forward_table {
