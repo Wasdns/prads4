@@ -115,13 +115,43 @@ header_type prads_metadata_t {
 
 metadata prads_metadata_t prads_metadata;
 
-register prads_tcp_asset_reg { 
-    width : 1;
+register prads_tcp_src_asset_reg { 
+    width : 32;
     instance_count : PRADS_MAP_SIZE;
 }
 
-register prads_udp_asset_reg { 
-    width : 1;
+register prads_tcp_dst_asset_reg { 
+    width : 32;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_tcp_src_port_reg { 
+    width : 16;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_tcp_dst_port_reg { 
+    width : 16;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_udp_src_asset_reg { 
+    width : 32;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_udp_dst_asset_reg { 
+    width : 32;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_udp_src_port_reg { 
+    width : 16;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_udp_dst_port_reg { 
+    width : 16;
     instance_count : PRADS_MAP_SIZE;
 }
 
@@ -145,7 +175,7 @@ field_list_calculation prads_tcp_map_hash {
     input {
         tcp_hash_fields;
     }
-    algorithm : crc16;
+    algorithm : crc32;
     output_width : PRADS_MAP_BITS;
 }
 
@@ -153,18 +183,24 @@ field_list_calculation prads_udp_map_hash {
     input {
         udp_hash_fields;
     }
-    algorithm : crc16;
+    algorithm : crc32;
     output_width : PRADS_MAP_BITS;
 }
 
 action update_tcp_asset_reg() {
     modify_field_with_hash_based_offset(prads_metadata.asset_reg_index, 0, prads_tcp_map_hash, PRADS_MAP_SIZE);
-    register_write(prads_tcp_asset_reg, prads_metadata.asset_reg_index, 1);
+    register_write(prads_tcp_src_asset_reg, prads_metadata.asset_reg_index, ipv4.srcAddr);
+    register_write(prads_tcp_dst_asset_reg, prads_metadata.asset_reg_index, ipv4.dstAddr);
+    register_write(prads_tcp_src_port_reg, prads_metadata.asset_reg_index, tcp.srcPort);
+    register_write(prads_tcp_dst_port_reg, prads_metadata.asset_reg_index, tcp.dstPort);
 }
 
 action update_udp_asset_reg() {
     modify_field_with_hash_based_offset(prads_metadata.asset_reg_index, 0, prads_udp_map_hash, PRADS_MAP_SIZE);
-    register_write(prads_udp_asset_reg, prads_metadata.asset_reg_index, 1);
+    register_write(prads_udp_src_asset_reg, prads_metadata.asset_reg_index, ipv4.srcAddr);
+    register_write(prads_udp_dst_asset_reg, prads_metadata.asset_reg_index, ipv4.dstAddr);
+    register_write(prads_udp_src_port_reg, prads_metadata.asset_reg_index, udp.srcPort);
+    register_write(prads_udp_dst_port_reg, prads_metadata.asset_reg_index, udp.dstPort);
 }
 
 table prads_tcp_asset {
@@ -183,8 +219,9 @@ table prads_udp_asset {
 
 /* decide which port to forward the packets */
 
-action simple_forward(ifindex) {
-    modify_field(ingress_metadata.egress_ifindex, ifindex);
+action simple_forward(port) {
+    modify_field(standard_metadata.egress_spec, port);
+    // modify_field(ingress_intrinsic_metadata_for_tm.ucast_egress_port, port);
 }
 
 table forward_table {
