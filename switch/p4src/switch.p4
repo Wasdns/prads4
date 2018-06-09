@@ -117,6 +117,8 @@ header_type prads_metadata_t {
 
 metadata prads_metadata_t prads_metadata;
 
+/* tcp packet registers */
+
 register prads_tcp_pkt_cnt {
     width : 32;
     instance_count : PRADS_MAP_SIZE;
@@ -141,6 +143,8 @@ register prads_tcp_dst_port_reg {
     width : 16;
     instance_count : PRADS_MAP_SIZE;
 }
+
+/* udp packet registers */
 
 register prads_udp_pkt_cnt {
     width : 32;
