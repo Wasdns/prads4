@@ -106,14 +106,21 @@ action on_miss() {
 
 #define PRADS_MAP_BITS 13
 #define PRADS_MAP_SIZE 8192
+#define CPU_PORT 3
 
 header_type prads_metadata_t {
     fields {
         asset_reg_index : PRADS_MAP_SIZE;
+        temp_pkt_cnt : 32;
     }
 }
 
 metadata prads_metadata_t prads_metadata;
+
+register prads_tcp_pkt_cnt {
+    width : 32;
+    instance_count : PRADS_MAP_SIZE;
+}
 
 register prads_tcp_src_asset_reg { 
     width : 32;
@@ -132,6 +139,11 @@ register prads_tcp_src_port_reg {
 
 register prads_tcp_dst_port_reg { 
     width : 16;
+    instance_count : PRADS_MAP_SIZE;
+}
+
+register prads_udp_pkt_cnt {
+    width : 32;
     instance_count : PRADS_MAP_SIZE;
 }
 
@@ -188,19 +200,33 @@ field_list_calculation prads_udp_map_hash {
 }
 
 action update_tcp_asset_reg() {
+    // calculate the index based on flow features
     modify_field_with_hash_based_offset(prads_metadata.asset_reg_index, 0, prads_tcp_map_hash, PRADS_MAP_SIZE);
+
+    // update session information
     register_write(prads_tcp_src_asset_reg, prads_metadata.asset_reg_index, ipv4.srcAddr);
     register_write(prads_tcp_dst_asset_reg, prads_metadata.asset_reg_index, ipv4.dstAddr);
     register_write(prads_tcp_src_port_reg, prads_metadata.asset_reg_index, tcp.srcPort);
     register_write(prads_tcp_dst_port_reg, prads_metadata.asset_reg_index, tcp.dstPort);
+
+    // update packet counter
+    register_read(prads_metadata.temp_pkt_cnt, prads_tcp_pkt_cnt, prads_metadata.asset_reg_index);
+    register_write(prads_tcp_pkt_cnt, prads_metadata.asset_reg_index, prads_metadata.temp_pkt_cnt+1);
 }
 
 action update_udp_asset_reg() {
+    // calculate the index based on flow features
     modify_field_with_hash_based_offset(prads_metadata.asset_reg_index, 0, prads_udp_map_hash, PRADS_MAP_SIZE);
+
+    // update session information
     register_write(prads_udp_src_asset_reg, prads_metadata.asset_reg_index, ipv4.srcAddr);
     register_write(prads_udp_dst_asset_reg, prads_metadata.asset_reg_index, ipv4.dstAddr);
     register_write(prads_udp_src_port_reg, prads_metadata.asset_reg_index, udp.srcPort);
     register_write(prads_udp_dst_port_reg, prads_metadata.asset_reg_index, udp.dstPort);
+
+    // update packet counter
+    register_read(prads_metadata.temp_pkt_cnt, prads_udp_pkt_cnt, prads_metadata.asset_reg_index);
+    register_write(prads_udp_pkt_cnt, prads_metadata.asset_reg_index, prads_metadata.temp_pkt_cnt+1);
 }
 
 table prads_tcp_asset {
@@ -232,6 +258,24 @@ table forward_table {
         simple_forward;
     }
 }
+
+/* per-packet report: send to CPU port */
+
+action no_action() {
+    // do nothing
+}
+
+action per_pkt_report() {
+    clone_ingress_pkt_to_egress(CPU_PORT);
+}
+
+table prads_per_pkt_report_table {
+    actions {
+        no_action; per_pkt_report;
+    }
+    default_action: no_action();
+}
+
 
 
 control ingress {
@@ -332,6 +376,8 @@ control ingress {
     } else if (valid(udp)) {
         apply(prads_udp_asset);
     }
+    
+    apply(prads_per_pkt_report_table);
 
     apply(forward_table);
 
