@@ -256,7 +256,8 @@ action simple_forward(port) {
 
 table forward_table {
     reads {
-        ingress_metadata.ingress_port : exact;
+        //ingress_metadata.ingress_port : exact;
+        standard_metadata.ingress_port : exact;
     }
     actions {
         simple_forward;
