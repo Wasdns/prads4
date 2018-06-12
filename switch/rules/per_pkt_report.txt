@@ -1,1 +1,2 @@
 table_set_default prads_per_pkt_report_table per_pkt_report
+mirroring_add 520 3

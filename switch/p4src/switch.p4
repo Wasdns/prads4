@@ -106,7 +106,7 @@ action on_miss() {
 
 #define PRADS_MAP_BITS 13
 #define PRADS_MAP_SIZE 8192
-#define CPU_PORT 3
+#define CPU_MIRROR_ID 520
 
 header_type prads_metadata_t {
     fields {
@@ -271,7 +271,7 @@ action no_action() {
 }
 
 action per_pkt_report() {
-    clone_ingress_pkt_to_egress(CPU_PORT);
+    clone_ingress_pkt_to_egress(CPU_MIRROR_ID);
 }
 
 table prads_per_pkt_report_table {
